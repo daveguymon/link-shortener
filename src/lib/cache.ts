@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-let redis: any = null;
+let redis: Redis | null = null;
 let _getCachedLink: (alias: string) => Promise<string | null>;
 let _setCachedLink: (alias: string, targetUrl: string, ttlSeconds: number) => Promise<void>;
 let _closeRedis: () => Promise<void>;
@@ -36,16 +36,16 @@ if (process.env.NODE_ENV === 'test') {
 
   _getCachedLink = async (alias: string) => {
     const key = `link:${alias}`;
-    return await redis.get(key);
+    return await (redis as Redis).get(key);
   };
 
   _setCachedLink = async (alias: string, targetUrl: string, ttlSeconds: number) => {
     const key = `link:${alias}`;
-    await redis.set(key, targetUrl, 'EX', ttlSeconds);
+    await (redis as Redis).set(key, targetUrl, 'EX', ttlSeconds);
   };
 
   _closeRedis = async () => {
-    await redis.quit();
+    await (redis as Redis).quit();
   };
 }
 

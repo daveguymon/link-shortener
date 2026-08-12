@@ -1,10 +1,10 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getCachedLink, setCachedLink } from '../lib/cache';
 import { getLinkByAlias } from '../lib/db';
 
 export default async function (fastify: FastifyInstance) {
-  fastify.get('/:alias', async (request, reply) => {
-    const { alias } = request.params as any;
+  fastify.get('/:alias', async (request: FastifyRequest<{ Params: { alias: string } }>, reply: FastifyReply) => {
+    const { alias } = request.params;
     if (!alias) return reply.status(400).send({ error: 'Missing alias' });
 
     // Try cache first
