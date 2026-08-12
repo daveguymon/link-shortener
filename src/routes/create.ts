@@ -27,8 +27,8 @@ export default async function (fastify: FastifyInstance) {
       }
     },
     async (request: FastifyRequest<{ Body: { url?: string; targetUrl?: string; expiresAt?: string; expiresInDays?: number } }>, reply: FastifyReply) => {
-    const body = (request.body as any) || {};
-    const rawUrl = (body.url as string | undefined) || (body.targetUrl as string | undefined);
+    const body = request.body || {};
+    const rawUrl = body.url || body.targetUrl;
     if (!rawUrl) return reply.status(400).send({ error: 'Missing url' });
     let target: string;
     try {
@@ -42,8 +42,8 @@ export default async function (fastify: FastifyInstance) {
     let expiresAt: Date;
     if (body.expiresAt) {
       expiresAt = new Date(body.expiresAt);
-    } else if (typeof (body as any).expiresInDays === 'number') {
-      expiresAt = new Date(Date.now() + Math.max(1, Math.floor((body as any).expiresInDays)) * 24 * 60 * 60 * 1000);
+    } else if (typeof body.expiresInDays === 'number') {
+      expiresAt = new Date(Date.now() + Math.max(1, Math.floor(body.expiresInDays)) * 24 * 60 * 60 * 1000);
     } else {
       expiresAt = new Date(Date.now() + defaultExpiryMs);
     }
