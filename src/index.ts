@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import path from 'path';
+import fs from 'fs/promises';
 import fastifyStatic from '@fastify/static';
 import createRoutes from './routes/create';
 import redirectRoutes from './routes/redirect';
@@ -30,6 +31,21 @@ server.register(fastifyStatic, {
 // Redirect root to UI
 server.get('/', async (_req, reply) => {
   return reply.redirect('/ui/');
+});
+
+// Fallback simple static handler for /ui/* to ensure UI loads in dev
+server.get('/ui/*', async (request, reply) => {
+  try {
+    const reqPath = (request.params as any)['*'] || '';
+    const file = reqPath === '' ? 'index.html' : reqPath;
+    const full = path.join(__dirname, '..', 'public', file);
+    const data = await fs.readFile(full);
+    const ext = path.extname(file).toLowerCase();
+    const type = ext === '.js' ? 'application/javascript' : ext === '.css' ? 'text/css' : ext === '.json' ? 'application/json' : 'text/html';
+    reply.type(type).send(data);
+  } catch (err) {
+    return reply.status(404).send({ error: 'UI asset not found' });
+  }
 });
 
 server.register(createRoutes);
