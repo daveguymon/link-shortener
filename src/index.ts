@@ -30,32 +30,37 @@ server.register(fastifyStatic, {
 
 // Redirect root to UI
 server.get('/', async (_req, reply) => {
-  return reply.redirect('/ui/');
-});
-
-// Fallback simple static handler for /ui/* to ensure UI loads in dev
-server.get('/ui/*', async (request, reply) => {
   try {
-    const reqPath = (request.params as any)['*'] || '';
-    const file = reqPath === '' ? 'index.html' : reqPath;
-    const full = path.join(__dirname, '..', 'public', file);
+    const full = path.join(__dirname, '..', 'public', 'index.html');
     const data = await fs.readFile(full);
-    const ext = path.extname(file).toLowerCase();
-    const type = ext === '.js' ? 'application/javascript' : ext === '.css' ? 'text/css' : ext === '.json' ? 'application/json' : 'text/html';
-    reply.type(type).send(data);
+    return reply.type('text/html').send(data);
   } catch (err) {
-    return reply.status(404).send({ error: 'UI asset not found' });
+    return reply.status(500).send({ error: 'UI not available' });
   }
 });
 
+// Ensure `/ui` redirects to `/ui/` and serve the UI index at `/ui/`
+server.get('/ui', async (_req, reply) => reply.redirect('/ui/'));
+
+server.get('/ui/', async (_req, reply) => {
+  try {
+    const full = path.join(__dirname, '..', 'public', 'index.html');
+    const data = await fs.readFile(full);
+    return reply.type('text/html').send(data);
+  } catch (err) {
+    return reply.status(500).send({ error: 'UI not available' });
+  }
+});
+
+// Note: fastifyStatic already registers /ui/* routes, so no manual fallback here.
 server.register(createRoutes);
 server.register(redirectRoutes);
 
 const start = async () => {
   try {
     // ensure DB is reachable
-    await pool.query('SELECT 1');
-    await redis.ping();
+    if (pool) await pool.query('SELECT 1');
+    if (redis) await redis.ping();
     await server.listen({ port, host: '0.0.0.0' });
   } catch (err) {
     server.log.error(err);
@@ -66,8 +71,8 @@ const start = async () => {
 process.on('SIGINT', async () => {
   server.log.info('Shutting down');
   await server.close();
-  await pool.end();
-  await redis.quit();
+  if (pool) await pool.end();
+  if (redis) await redis.quit();
   process.exit(0);
 });
 
