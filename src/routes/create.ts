@@ -1,0 +1,71 @@
+import { FastifyInstance } from 'fastify';
+import { generateAlias } from '../lib/generator';
+import { createLink } from '../lib/db';
+import { setCachedLink } from '../lib/cache';
+import { normalizeUrl, normalizeBaseUrl } from '../lib/normalize';
+
+export default async function (fastify: FastifyInstance) {
+  fastify.post(
+    '/api/links',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['url'],
+          properties: {
+            url: { type: 'string' },
+            expiresAt: { type: 'string', format: 'date-time' }
+          }
+        }
+      },
+      config: {
+        rateLimit: {
+          max: Number(process.env.CREATE_RATE_LIMIT_MAX || 10),
+          timeWindow: process.env.CREATE_RATE_LIMIT_WINDOW || '1 minute'
+        }
+      }
+    },
+    async (request, reply) => {
+    const body = request.body as any;
+    if (!body || !body.url) return reply.status(400).send({ error: 'Missing url' });
+    let target: string;
+    try {
+      target = normalizeUrl(body.url);
+    } catch (err) {
+      return reply.status(400).send({ error: 'Invalid or unsupported URL' });
+    }
+
+    const defaultExpiryMs = 1000 * 60 * 60 * 24 * 365 * 2; // 2 years
+    const maxExpiryMs = 1000 * 60 * 60 * 24 * 365 * 5; // 5 years
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : new Date(Date.now() + defaultExpiryMs);
+    if (isNaN(expiresAt.getTime())) return reply.status(400).send({ error: 'Invalid expiresAt' });
+    if (expiresAt.getTime() - Date.now() > maxExpiryMs) return reply.status(400).send({ error: 'expiresAt too far in future' });
+
+    const aliasLength = Number(process.env.ALIAS_LENGTH || 8);
+    const maxAttempts = 5;
+    let lastErr: any = null;
+    for (let i = 0; i < maxAttempts; i++) {
+      const alias = generateAlias(aliasLength);
+      try {
+        const row = await createLink(alias, target, expiresAt);
+        // set cache TTL to seconds until expiration
+        const ttl = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+        await setCachedLink(alias, target, ttl);
+        const baseRaw = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+        let base: string;
+        try {
+          base = normalizeBaseUrl(baseRaw);
+        } catch (_) {
+          base = `http://localhost:${process.env.PORT || 3000}`;
+        }
+        return reply.status(201).send({ alias, shortUrl: `${base}/${alias}`, target, expiresAt: row.expires_at });
+      } catch (err: any) {
+        // unique violation -> retry
+        lastErr = err;
+        if (err && err.code === '23505') continue;
+        break;
+      }
+    }
+    return reply.status(500).send({ error: 'Could not generate unique alias', detail: lastErr?.message });
+  });
+}
