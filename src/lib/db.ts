@@ -5,9 +5,9 @@ dotenv.config();
 
 type Row = { alias: string; target_url: string; expires_at: string; created_at: string };
 
-let pool: any = null;
-let createLink: (alias: string, targetUrl: string, expiresAt: Date) => Promise<any>;
-let getLinkByAlias: (alias: string) => Promise<any>;
+let pool: Pool | null = null;
+let createLink: (alias: string, targetUrl: string, expiresAt: Date) => Promise<Row>;
+let getLinkByAlias: (alias: string) => Promise<Row | null>;
 let closePool: () => Promise<void>;
 
 if (process.env.NODE_ENV === 'test') {
@@ -16,14 +16,14 @@ if (process.env.NODE_ENV === 'test') {
   createLink = async (alias: string, targetUrl: string, expiresAt: Date) => {
     const row: Row = { alias, target_url: targetUrl, expires_at: expiresAt.toISOString(), created_at: new Date().toISOString() };
     store.set(alias, row);
-    return row as any;
+    return row;
   };
 
   getLinkByAlias = async (alias: string) => {
     const row = store.get(alias);
     if (!row) return null;
     if (new Date(row.expires_at) <= new Date()) return null;
-    return row as any;
+    return row;
   };
 
   closePool = async () => { /* noop */ };

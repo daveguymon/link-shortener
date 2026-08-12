@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { generateAlias } from '../lib/generator';
 import { createLink } from '../lib/db';
 import { setCachedLink } from '../lib/cache';
@@ -25,8 +25,8 @@ export default async function (fastify: FastifyInstance) {
         }
       }
     },
-    async (request, reply) => {
-    const body = request.body as any;
+    async (request: FastifyRequest<{ Body: { url: string; expiresAt?: string } }>, reply: FastifyReply) => {
+    const body = request.body;
     if (!body || !body.url) return reply.status(400).send({ error: 'Missing url' });
     let target: string;
     try {
@@ -43,7 +43,7 @@ export default async function (fastify: FastifyInstance) {
 
     const aliasLength = Number(process.env.ALIAS_LENGTH || 8);
     const maxAttempts = 5;
-    let lastErr: any = null;
+    let lastErr: unknown = null;
     for (let i = 0; i < maxAttempts; i++) {
       const alias = generateAlias(aliasLength);
       try {
@@ -59,13 +59,16 @@ export default async function (fastify: FastifyInstance) {
           base = `http://localhost:${process.env.PORT || 3000}`;
         }
         return reply.status(201).send({ alias, shortUrl: `${base}/${alias}`, target, expiresAt: row.expires_at });
-      } catch (err: any) {
+      } catch (err: unknown) {
         // unique violation -> retry
         lastErr = err;
-        if (err && err.code === '23505') continue;
+        const dbErr = err as { code?: string; message?: string };
+        if (dbErr.code === '23505') continue;
         break;
       }
     }
-    return reply.status(500).send({ error: 'Could not generate unique alias', detail: lastErr?.message });
+    type DBError = { message?: string };
+    const detail = (lastErr && typeof lastErr === 'object' && 'message' in lastErr) ? (lastErr as DBError).message : undefined;
+    return reply.status(500).send({ error: 'Could not generate unique alias', detail });
   });
 }
