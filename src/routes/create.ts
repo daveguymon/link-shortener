@@ -11,10 +11,11 @@ export default async function (fastify: FastifyInstance) {
       schema: {
         body: {
           type: 'object',
-          required: ['url'],
           properties: {
             url: { type: 'string' },
-            expiresAt: { type: 'string', format: 'date-time' }
+            targetUrl: { type: 'string' },
+            expiresAt: { type: 'string', format: 'date-time' },
+            expiresInDays: { type: 'number' }
           }
         }
       },
@@ -26,18 +27,26 @@ export default async function (fastify: FastifyInstance) {
       }
     },
     async (request: FastifyRequest<{ Body: { url: string; expiresAt?: string } }>, reply: FastifyReply) => {
-    const body = request.body;
-    if (!body || !body.url) return reply.status(400).send({ error: 'Missing url' });
+    const body = request.body || {};
+    const rawUrl = (body.url as string) || (body.targetUrl as string);
+    if (!rawUrl) return reply.status(400).send({ error: 'Missing url' });
     let target: string;
     try {
-      target = normalizeUrl(body.url);
+      target = normalizeUrl(rawUrl);
     } catch (err) {
       return reply.status(400).send({ error: 'Invalid or unsupported URL' });
     }
 
     const defaultExpiryMs = 1000 * 60 * 60 * 24 * 365 * 2; // 2 years
     const maxExpiryMs = 1000 * 60 * 60 * 24 * 365 * 5; // 5 years
-    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : new Date(Date.now() + defaultExpiryMs);
+    let expiresAt: Date;
+    if (body.expiresAt) {
+      expiresAt = new Date(body.expiresAt);
+    } else if (typeof body.expiresInDays === 'number') {
+      expiresAt = new Date(Date.now() + Math.max(1, Math.floor(body.expiresInDays)) * 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(Date.now() + defaultExpiryMs);
+    }
     if (isNaN(expiresAt.getTime())) return reply.status(400).send({ error: 'Invalid expiresAt' });
     if (expiresAt.getTime() - Date.now() > maxExpiryMs) return reply.status(400).send({ error: 'expiresAt too far in future' });
 

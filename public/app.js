@@ -23,8 +23,8 @@ form.addEventListener('submit', async (e) => {
     const body = await res.json();
     if (!res.ok) throw new Error(body.message || 'Failed to create link');
 
-    const base = body.baseUrl || window.location.origin;
-    shortLinkEl.innerHTML = `<a href="${base}/${body.alias}" target="_blank">${base}/${body.alias}</a>`;
+    const displayUrl = body.shortUrl || `${window.location.origin}/${body.alias}`;
+    shortLinkEl.innerHTML = `<a href="${displayUrl}" target="_blank">${displayUrl}</a>`;
     expiresAtEl.textContent = `Expires at: ${new Date(body.expiresAt).toLocaleString()}`;
     result.classList.remove('hidden');
   } catch (err) {
