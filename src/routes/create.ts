@@ -26,9 +26,9 @@ export default async function (fastify: FastifyInstance) {
         }
       }
     },
-    async (request: FastifyRequest<{ Body: { url: string; expiresAt?: string } }>, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Body: { url?: string; targetUrl?: string; expiresAt?: string; expiresInDays?: number } }>, reply: FastifyReply) => {
     const body = request.body || {};
-    const rawUrl = (body.url as string) || (body.targetUrl as string);
+    const rawUrl = body.url || body.targetUrl;
     if (!rawUrl) return reply.status(400).send({ error: 'Missing url' });
     let target: string;
     try {

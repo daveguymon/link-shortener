@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { FastifyRequest, FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 
@@ -15,7 +15,7 @@ describe('Integration: UI routes', () => {
     });
 
     // root should render the UI index
-    app.get('/', async (_req, reply) => {
+    app.get('/', async (_req: FastifyRequest, reply: FastifyReply) => {
       return reply.redirect('/ui/');
     });
   });

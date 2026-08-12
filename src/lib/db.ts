@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'test') {
   });
 
   createLink = async (alias: string, targetUrl: string, expiresAt: Date) => {
-    const client = await pool.connect();
+    const client = await pool!.connect();
     try {
       const res = await client.query(
         `INSERT INTO links (alias, target_url, expires_at) VALUES ($1, $2, $3) RETURNING *`,
@@ -51,14 +51,14 @@ if (process.env.NODE_ENV === 'test') {
   };
 
   getLinkByAlias = async (alias: string) => {
-    const res = await pool.query(
+    const res = await pool!.query(
       `SELECT * FROM links WHERE alias = $1 AND expires_at > now() LIMIT 1`,
       [alias]
     );
     return res.rows[0] || null;
   };
 
-  closePool = async () => { await pool.end(); };
+  closePool = async () => { if (pool) await pool.end(); };
 }
 
 export { createLink, getLinkByAlias, closePool, pool };
