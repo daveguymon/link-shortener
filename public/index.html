@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Link Shortener</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Link Shortener</h1>
+      <form id="create-form">
+        <label for="url">Long URL</label>
+        <input id="url" name="url" type="url" placeholder="https://example.com/very/long/path" required />
+
+        <label for="expiresIn">Expires in (days, optional)</label>
+        <input id="expiresIn" name="expiresIn" type="number" min="1" placeholder="Defaults to 730" />
+
+        <button type="submit">Create Short Link</button>
+      </form>
+
+      <section id="result" class="hidden">
+        <h2>Short Link</h2>
+        <p id="short-link"></p>
+        <p id="expires-at"></p>
+      </section>
+
+      <section id="error" class="hidden error"></section>
+    </main>
+    <script src="/ui/app.js"></script>
+  </body>
+</html>

@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
+import path from 'path';
+import fastifyStatic from '@fastify/static';
 import createRoutes from './routes/create';
 import redirectRoutes from './routes/redirect';
 import { pool } from './lib/db';
@@ -19,6 +21,17 @@ server.register(rateLimit, {
 });
 
 // Register routes (creation endpoint will use the rate limit via decorator)
+// Serve a minimal UI under /ui/
+server.register(fastifyStatic, {
+  root: path.join(__dirname, '..', 'public'),
+  prefix: '/ui/',
+});
+
+// Redirect root to UI
+server.get('/', async (_req, reply) => {
+  return reply.redirect('/ui/');
+});
+
 server.register(createRoutes);
 server.register(redirectRoutes);
 
